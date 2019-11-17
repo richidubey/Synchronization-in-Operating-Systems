@@ -22,7 +22,7 @@ void* barber(void* ptr)
 void* customer(void* ptr)
 {
 	int curr;
-	int ret=sem_wait(&shopfull);		//wait if shop is full.
+	int ret=sem_getvalue(&shopfull);		//wait if shop is full.
 	
 		
 	for(int i=0;i<50;i++)
@@ -68,6 +68,12 @@ int main()
 	//sem_wait blocks the calling thread until the count in the thread becomes greater than zero, then it automatically decrements it.
 	
 	
+	//ret=sem_getvalue(&sem,&sval);
+	
+	
+	//places the current value of the semaphore into sval.
+	//if one or more processes or threads are blocked waiting to lock the semaphore with sem_wait, sval gets two value either 0(linux) or -ve of count in absolute. 
+	 
 	pthread_t pidc,pidb;
 	
 	pthread_create(&pidb,NULL,barber,NULL);
