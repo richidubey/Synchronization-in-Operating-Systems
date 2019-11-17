@@ -116,6 +116,7 @@ int main()
 	
 	pthread_create(&pidb,NULL,barber,NULL);
 	
+	
 	for(int i=0;i<10;i++)
 	pthread_create(&pidc[i],NULL,customer,NULL);
 	
