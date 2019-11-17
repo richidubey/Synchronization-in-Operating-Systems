@@ -1,34 +1,66 @@
-#include<semaphore.h>
+ #include<semaphore.h>
 #include<stdio.h>
+#include <stdbool.h>
 #include<pthread.h>
+#define N 5
+#include<sys/syscall.h>		//to get thread id
+#include <linux/unistd.h>
+#include <unistd.h>
 
-sem_t shopfull;
+sem_t shopempty;
+
+sem_t mutex;
+
+int cust_count=0;
+sem_t mutex,bmutex;
+bool shop[N];
+
+int in=0,out=0;
 //Shop full runs contradictory motion, if full, val would be 0, otherwise non zero.
 void* barber(void* ptr)
-{
+{	
+
+	do
+	{
+
+	sem_wait(&bmutex);
+	
 	int ret=sem_wait(&shopempty);		//barber waits if shop is empty. Basically he sleeps.
 	
 	
 	
-	for(int i=0;i<50;i++)
-	printf("This is Barber\n");
+	printf("This is Barber currently working on its customer %d\n",out);
+	out=(out+1)%N;
 	
+	cust_count--;		//One customer served
 	
-	ret=sem_post(&shopfull);			//Increases value of shop full
+	sem_post(&bmutex);	
 	
+	}while(1);	
 }
 
 
 void* customer(void* ptr)
 {
-	int curr;
-	int ret=sem_getvalue(&shopfull);		//wait if shop is full.
+	//int curr;
+//	int ret=sem_getvalue(&shopfull,&curr);		//Check if shop is full.
+											//Allowed as no one is actually waiting on shop full
+	if(cust_count==N)
+	return NULL;
 	
+	sem_wait(&mutex);
+	
+	cust_count++;	
+	
+	printf("This is customer entering the shop with tid = %ld at pos = %d\n",syscall(__NR_gettid),in);
+	
+	in=(in+1)%N;
+	
+	sem_post(&shopempty);		//Customer successfully enters, so signals barber to wake up if asleep. Otherwise stay awake until he gets served.
+	
+	
+	sem_post(&mutex);
 		
-	for(int i=0;i<50;i++)
-	printf("This is customer\n");
-	
-	ret=sem_post(&shopempty);		//Customer successfully enters, so signals barber to wake up if asleep. Otherwise stay awake until he gets served.	
 }
 
 
@@ -43,11 +75,17 @@ int main()
 	
 	int val;
 	
+	for(int i=0;i<N;i++)
+	shop[i]=0;
+	
 	pshared = 0 ; //private to process
 	val =1 ;
 	
-	ret=sem_init(&sem,pshared,val);
+	//ret=sem_init(&shopfull,pshared,0);
+	sem_init(&shopempty,pshared,0);
 	
+	sem_init(&bmutex,pshared,1);
+	sem_init(&mutex,pshared,1);
 	//Ret 0 for successful completion of func.
 	//Multiple threads must not initialize same semaphore
 	//A semaphore must not be reinitialized while other threads might be using it. 
@@ -74,16 +112,20 @@ int main()
 	//places the current value of the semaphore into sval.
 	//if one or more processes or threads are blocked waiting to lock the semaphore with sem_wait, sval gets two value either 0(linux) or -ve of count in absolute. 
 	 
-	pthread_t pidc,pidb;
+	pthread_t pidc[10],pidb;
 	
 	pthread_create(&pidb,NULL,barber,NULL);
 	
-	pthread_create(&pidc,NULL,customer,NULL);
+	for(int i=0;i<10;i++)
+	pthread_create(&pidc[i],NULL,customer,NULL);
 	
 	
 	pthread_join(pidb,NULL);	
-	pthread_join(pidc,NULL);
 	
+		for(int i=0;i<10;i++)
+	pthread_join(pidc[i],NULL);
+	
+
 
 	return 0;
 }
