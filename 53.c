@@ -11,26 +11,40 @@ sem_t rdr;
 int readcount=0;
 
 sem_t mutex;
-
+sem_t writergonow;
 sem_t wrt;
 
 
 void* reader(void *ptr)
 {
 	sem_wait(&rdr);
-
+		
 	sem_wait(&mutex);		//to make increasing readcount a CS.
 	
 	readcount++;
 	
 	if(readcount==1)
 		sem_wait(&wrt);
+	
+	if(readcount>=3)
+	{
+		int val;
+		sem_getvalue(&wrt,&val);
 		
+		if(val==0)
+		//Some thread is waiting on wrt. Writer thread is waiting on it. So dont allow this to happen. Let the writer go first now.
+		{
+			sem_wait(writergonow);
+			
+		}
+		
+		
+	}
 	sem_post(&mutex);
 	
 	
 //	printf("Reader %d is reading",atoi(ptr));
-		printf("Reader is reading");
+		printf("Reader is reading\n");
 	
 	sem_wait(&mutex);
 
@@ -50,7 +64,7 @@ void* writer(void *ptr)
 	sem_wait(&wrt);
 	
 //	printf("Writer %d is writing",atoi(ptr));
-		printf("Writer is writing");
+		printf("Writer is writing\n");
 	
 	
 	sem_post(&wrt);
@@ -84,7 +98,7 @@ int main()
 	pthread_join(rthread[i],NULL);
 	
 	for(int i=0;i<M;i++)
-	pthread_join(rthread[i],NULL);	
+	pthread_join(wthread[i],NULL);	
 
 	return 0;
 }
